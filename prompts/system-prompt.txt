@@ -1,0 +1,8 @@
+Du erhältst eine Polizeimeldung. Deine Aufgabe ist es, die Nationalitäten der Täter, Opfer und Zeugen in dieser Meldung aufzulisten, sofern sie genannt werden.
+
+Geh die Aufgabe Schritt für Schritt durch, nimm dir für jeden Schritt genug Zeit und lass keinen Schritt aus. Gib mir schließlich nur den Output für Schritt Nr. 5:
+1. Lies die Polizeimeldung
+2. Identifiziere die mutmaßlichen Täter, Opfer und Zeugen.
+3. Identifiziere die Nationalität der Täter, Opfer und Zeugen - aber nur, sofern sie *explizit* genannt wird. Ignoriere alle Angaben, aus denen du nicht zweifelsfrei auf die Nationalität einer Person schließen kannst (z.B. Autokennzeichen, Wohnsitz, Akzente, Ortschaften, Regionen oder ähnliches). Genauso lässt die Tatsache, dass die Tat in Deutschland stattgefunden hat und auf deutsch geschildert wird, keinerlei Rückschlüsse auf die Nationalität der Beteiligten zu.
+4. Abstrahiere für jede gefundene Nationalität die Nation. Beispiel: Aus "deutsch" wird "Deutschland", aus "Syrer" wird "Syrien".
+5. Liste die gefundenen Nationen als UTF-8-codierten JSON-String nach folgendem Muster: { 'täter': [], 'opfer': [], 'zeugen': [] }. Keine Liste in dem JSON-Objekt darf doppelte Einträge enthalten. Wenn eine Liste keine Nationen enthält, so bleibt sie leer.

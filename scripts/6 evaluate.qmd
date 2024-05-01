@@ -1,0 +1,103 @@
+---
+title: "6 Evaluate"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+## Goal
+
+Compare retrieval metrics for different gpts.
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here, jsonlite, readxl, rlang, diffdf)
+```
+
+## Import
+
+```{r}
+load_sample <- function(file_name) {
+    tibble(results = read_json(here("data", file_name))) %>% 
+        mutate(results = map(results, ~ str_replace_all(.x, "\\'", "\"")),
+               results = map(results, ~ fromJSON(.x[[1]]))) %>% 
+        unnest_wider(results)
+}
+```
+
+```{r}
+sample_gpt35turbo <- load_sample("sample-gpt35turbo.json")
+sample_ft <- load_sample("sample-ft.json")
+sample_gpt4turbo <- load_sample("sample-gpt4turbo.json")
+
+baseline <- read_excel(here("data", "validation-prepped.xlsx")) %>% 
+    select(täter, opfer, zeugen)
+    
+lookup <- read_csv(here("data", "lookup.csv"))
+```
+
+
+## Arrange found nations in list columns
+
+```{r}
+collect_nations_vec <- function(vec) {
+    nations <- map(vec,
+        ~ filter(lookup, str_detect(.x, keywords)) %>% pull(nation))
+    res <- if (length(unlist(nations)) == 0) character(0) else unlist(nations)
+}
+
+collect_nations <- function(col) {
+    map(col, collect_nations_vec)
+}
+
+transform_sample <- function(df) {
+    df %>% 
+        mutate(across(everything(), ~ map(.x, ~ .x %||% NA_character_)),
+           across(everything(), ~ map(.x, unique)),
+           across(everything(), ~ map(.x, na.omit)),
+           across(everything(), ~ map(.x, as.list)),
+           across(everything(), collect_nations)) 
+}
+
+nations_baseline <- baseline %>% 
+    mutate(across(täter:last_col(), ~ map(.x, function(y) {
+        if (is.na(y)) character(0) 
+        else str_split_1(y, ",") %>% trimws() %>% unique()
+    }))) %>% 
+    mutate(across(täter:last_col(), collect_nations)) 
+    
+nations_gpt35turbo <- transform_sample(sample_gpt35turbo) 
+nations_ft <- transform_sample(sample_ft) 
+nations_gpt4turbo <- transform_sample(sample_gpt4turbo) 
+```
+
+
+## Find Differences
+
+```{r}
+get_metrics <- function(compare) {
+    map(list(nations_baseline, compare),
+        ~ mutate(.x, across(everything(), ~ map_chr(.x, ~ paste0(sort(.x), collapse = ","))))) %>% 
+    reduce(diffdf)
+}
+
+get_metrics(nations_gpt35turbo)
+get_metrics(nations_ft)
+get_metrics(nations_gpt4turbo)
+```
+
+All models find too many occurrences. Great differences in performance.
+
+1.  The untrained gpt35turbo model is way off the charts.
+2.  The fine tuned model gets most cases right. It makes minor mistakes classifying German and Polish cases - presumably because the model did not consistently ignore license plates, place of residence etc., although it was instructed to do so.
+3.  The gpt4turbo model is still slightly better than the fine tuned model. It only got one Polish case wrong. The report in validation case 21 is, at second sight, arguably ambivalent, making the model's classification correct. 
+
+## Conclusion
+
+The gpt4-turbo model classified 49 of the 50 press releases (98 %) in the validation set correctly. 
+In the one case where it made a mistake, it only identified one person too much. 
+
+Use gpt4-turbo.
